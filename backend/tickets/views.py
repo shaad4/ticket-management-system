@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 
+from django.shortcuts import get_object_or_404
 from .serializers import TicketSerializer
 from .models import Ticket
 
@@ -46,21 +47,87 @@ class TicketListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+    
     def post(self, request):
-        serialzer = TicketSerializer(
-            data = request.data,
-            context = {"request": request},
+        serializer = TicketSerializer(
+            data=request.data,
+            context={"request": request}
         )
 
-        serialzer.is_valid(raise_exception=True)
+        serializer.is_valid(raise_exception=True)
 
-        serialzer.save(user=request.user)
+        serializer.save(user=request.user)
 
         return Response(
-            serialzer.data,
+            serializer.data,
             status=status.HTTP_201_CREATED
         )
-        
+
+
+
+class TicketDetailsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_ticket(self, request, pk):
+        if request.user.is_staff:
+            queryset = Ticket.objects.all()
+        else:
+            queryset = Ticket.objects.filter(user=request.user)
+
+        return get_object_or_404(queryset, pk=pk)   
+
+    def get(self, request, pk):
+        ticket = self.get_ticket(request, pk)
+        serializer = TicketSerializer(ticket)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )   
+
+    def put(self, request, pk):
+        ticket = self.get_ticket(request, pk)
+
+        serializer = TicketSerializer(
+            ticket,
+            data=request.data,
+            context={"request": request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )  
+
+    def patch(self, request, pk):
+        ticket = self.get_ticket(request, pk)
+
+        serializer = TicketSerializer(
+            ticket,
+            data=request.data,
+            partial=True,
+            context={"request": request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    def delete(self, request, pk):
+        ticket = self.get_ticket(request, pk)
+        ticket.delete()
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
+    
         
 
 
