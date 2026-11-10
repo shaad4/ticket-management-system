@@ -41,7 +41,7 @@ Vite proxies `/api` to `http://127.0.0.1:8000`. To change the target, copy `fron
 
 There are no mock users or tickets. New accounts start with an empty dashboard. Django persists changes and enforces permissions. Refresh restores the session from the HTTP-only session cookie. The frontend reads the CSRF cookie for each mutation, including after login rotates it. Credentials and session tokens are not stored in localStorage.
 
-Search and filters operate on the authorized ticket list returned by Django. Refresh reloads that list. Detail views fetch the latest ticket. Save and delete controls wait for successful API responses; failed saves preserve the form. Registration displays backend validation errors and returns to sign-in after success.
+Tickets use Django page-number pagination (`count`, `next`, `previous`, and `results`). Previous/Next loads one page at a time. Status, priority, and creator filters are sent to Django and reset the list to page 1. Search and the status summary apply only to the current page and are labeled accordingly. Refresh reloads the active page. Returning from ticket changes reloads the page so totals and filtered results stay accurate. Deleting the last ticket on a page returns to the preceding page. Detail views fetch the latest ticket. Save and delete controls wait for successful API responses; failed saves preserve the form. Registration displays backend validation errors and returns to sign-in after success.
 
 ## Code map
 

@@ -9,6 +9,17 @@ import TicketForm from "./TicketForm";
 export default function Workspace({ user, onSessionExpired }) {
   const [tickets, setTickets] = useState([]);
   const [users, setUsers] = useState([]);
+  const [filters, setFilters] = useState({
+    page: 1,
+    status: "",
+    priority: "",
+    user: "",
+  });
+  const [pagination, setPagination] = useState({
+    count: 0,
+    next: null,
+    previous: null,
+  });
   const [view, setView] = useState("list");
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +32,8 @@ export default function Workspace({ user, onSessionExpired }) {
   const isAdmin = user.is_staff;
 
   useEffect(() => {
+    if (view !== "list") return;
+
     const controller = new AbortController();
 
     async function loadWorkspace() {
@@ -30,14 +43,27 @@ export default function Workspace({ user, onSessionExpired }) {
 
       try {
         const [ticketList, userList] = await Promise.all([
-          api.tickets(controller.signal),
+          api.tickets(filters, controller.signal),
           isAdmin ? api.users(controller.signal) : Promise.resolve([]),
         ]);
 
-        setTickets(ticketList);
+        if (controller.signal.aborted) return;
+
+        setTickets(ticketList.results);
+        setPagination({
+          count: ticketList.count,
+          next: ticketList.next,
+          previous: ticketList.previous,
+        });
         setUsers(userList);
       } catch (error) {
         if (error.name === "AbortError") return;
+        // A deletion in another session can make the current page disappear.
+        if (error.status === 404 && filters.page > 1) {
+          setFilters((current) => ({ ...current, page: 1 }));
+          return;
+        }
+
         setLoadFailed(true);
         if (error.sessionExpired) onSessionExpired();
         else setError(error.message);
@@ -49,21 +75,25 @@ export default function Workspace({ user, onSessionExpired }) {
     loadWorkspace();
 
     return () => controller.abort();
-  }, [isAdmin, onSessionExpired, refresh]);
+  }, [isAdmin, onSessionExpired, refresh, filters, view]);
 
   function showError(error) {
     if (error.sessionExpired) onSessionExpired();
     else setError(error.message);
   }
 
-  function replaceTicket(updated) {
-    setSelected(updated);
-    setTickets((current) =>
-      current.map((ticket) => (ticket.id === updated.id ? updated : ticket)),
-    );
+  function changeFilters(values) {
+    setLoading(true);
+    setFilters((current) => ({ ...current, ...values, page: 1 }));
+  }
+
+  function changePage(page) {
+    setLoading(true);
+    setFilters((current) => ({ ...current, page }));
   }
 
   function back() {
+    setLoading(true);
     setView("list");
     setError("");
     setNotice("");
@@ -76,7 +106,7 @@ export default function Workspace({ user, onSessionExpired }) {
 
     try {
       const ticket = await api.ticket(id);
-      replaceTicket(ticket);
+      setSelected(ticket);
       setView("detail");
     } catch (error) {
       showError(error);
@@ -92,11 +122,11 @@ export default function Workspace({ user, onSessionExpired }) {
 
     try {
       if (view === "edit") {
-        replaceTicket(await api.updateTicket(selected.id, fields));
+        setSelected(await api.updateTicket(selected.id, fields));
         setNotice("Ticket updated.");
       } else {
         const ticket = await api.createTicket(fields);
-        setTickets((current) => [ticket, ...current]);
+        setFilters((current) => ({ ...current, page: 1 }));
         setSelected(ticket);
         setNotice("Ticket created. We’ll take it from here.");
       }
@@ -115,7 +145,7 @@ export default function Workspace({ user, onSessionExpired }) {
     setNotice("");
 
     try {
-      replaceTicket(await api.updateTicket(selected.id, fields));
+      setSelected(await api.updateTicket(selected.id, fields));
       setNotice("Ticket management updated.");
     } catch (error) {
       showError(error);
@@ -131,9 +161,11 @@ export default function Workspace({ user, onSessionExpired }) {
 
     try {
       await api.deleteTicket(selected.id);
-      setTickets((current) =>
-        current.filter((ticket) => ticket.id !== selected.id),
-      );
+      if (tickets.length === 1 && filters.page > 1) {
+        setFilters((current) => ({ ...current, page: current.page - 1 }));
+      }
+
+      setLoading(true);
       setSelected(null);
       setView("list");
       setNotice("Ticket deleted.");
@@ -208,7 +240,7 @@ export default function Workspace({ user, onSessionExpired }) {
         </p>
       )}
 
-      {loading ? (
+      {view === "list" && loading ? (
         <p className="muted" role="status">
           Loading tickets…
         </p>
@@ -223,6 +255,10 @@ export default function Workspace({ user, onSessionExpired }) {
           isAdmin={isAdmin}
           busy={busy}
           onOpen={openTicket}
+          filters={filters}
+          pagination={pagination}
+          onFilterChange={changeFilters}
+          onPageChange={changePage}
         />
       ) : view === "new" || view === "edit" ? (
         <TicketForm
@@ -230,6 +266,7 @@ export default function Workspace({ user, onSessionExpired }) {
           busy={busy}
           onSave={save}
           onCancel={() => {
+            if (view === "new") setLoading(true);
             setView(view === "edit" ? "detail" : "list");
             setError("");
           }}

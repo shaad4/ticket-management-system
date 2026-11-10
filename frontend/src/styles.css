@@ -795,3 +795,15 @@ fieldset {
 .ticket-row[aria-disabled="true"] {
   cursor: wait;
 }
+
+.pagination-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagination-footer .btn {
+  padding: 8px 12px;
+}

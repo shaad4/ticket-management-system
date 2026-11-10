@@ -1,28 +1,39 @@
 import { useState } from "react";
-import { ArrowUpRight, Search, Ticket, Inbox } from "lucide-react";
+import {
+  ArrowUpRight,
+  Search,
+  Ticket,
+  Inbox,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 import Badge from "./Badge";
 import { statuses, priorities, formatDate } from "../ticketUtils";
 
-export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
+export default function TicketList({
+  tickets,
+  users,
+  isAdmin,
+  busy,
+  onOpen,
+  filters,
+  pagination,
+  onFilterChange,
+  onPageChange,
+}) {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
-  const [priority, setPriority] = useState("");
-  const [owner, setOwner] = useState("");
 
-  const filtered = tickets.filter((ticket) => {
-    const matchesOwner = !owner || String(ticket.user) === owner;
-    const matchesStatus = !status || ticket.status === status;
-    const matchesPriority = !priority || ticket.priority === priority;
-    const matchesSearch = `${ticket.title} ${ticket.id}`
-      .toLowerCase()
-      .includes(query.toLowerCase());
-
-    return matchesOwner && matchesStatus && matchesPriority && matchesSearch;
-  });
+  const hasFilters = Boolean(
+    filters.status || filters.priority || filters.user,
+  );
+  const filtered = tickets.filter((ticket) =>
+    `${ticket.title} ${ticket.id}`.toLowerCase().includes(query.toLowerCase()),
+  );
 
   return (
     <>
+      <p className="eyebrow">ON THIS PAGE</p>
       <div className="stats">
         {Object.entries(statuses).map(([value, label]) => (
           <div className="panel stat" key={value}>
@@ -42,7 +53,7 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
         <div className="list-heading">
           <h2>
             {isAdmin ? "Team requests" : "Your requests"}{" "}
-            <span className="count">{tickets.length}</span>
+            <span className="count">{pagination.count}</span>
           </h2>
           <span className="muted">Made for moving forward.</span>
         </div>
@@ -51,8 +62,8 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
             <Search size={17} />
             <input
               className="search"
-              aria-label="Search tickets"
-              placeholder="Search by title or ticket number…"
+              aria-label="Search tickets on this page"
+              placeholder="Search this page by title or ticket number…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -60,8 +71,10 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
           <label className="field">
             <span className="sr-only">Filter by status</span>
             <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
+              value={filters.status}
+              onChange={(event) =>
+                onFilterChange({ status: event.target.value })
+              }
             >
               <option value="">All statuses</option>
               {Object.entries(statuses).map(([value, label]) => (
@@ -74,8 +87,10 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
           <label className="field">
             <span className="sr-only">Filter by priority</span>
             <select
-              value={priority}
-              onChange={(event) => setPriority(event.target.value)}
+              value={filters.priority}
+              onChange={(event) =>
+                onFilterChange({ priority: event.target.value })
+              }
             >
               <option value="">All priorities</option>
               {Object.entries(priorities).map(([value, label]) => (
@@ -89,18 +104,17 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
             <label className="field">
               <span className="sr-only">Filter by creator</span>
               <select
-                value={owner}
-                onChange={(event) => setOwner(event.target.value)}
+                value={filters.user}
+                onChange={(event) =>
+                  onFilterChange({ user: event.target.value })
+                }
               >
                 <option value="">All creators</option>
-                {[...new Set(tickets.map((ticket) => ticket.user))].map(
-                  (id) => (
-                    <option key={id} value={id}>
-                      {users.find((person) => person.id === id)?.username ||
-                        `User #${id}`}
-                    </option>
-                  ),
-                )}
+                {users.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.username}
+                  </option>
+                ))}
               </select>
             </label>
           )}
@@ -165,20 +179,20 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
         {!filtered.length && (
           <div className="empty">
             <Inbox size={30} />
-            <h2>{tickets.length ? "No matching tickets" : "A clean slate"}</h2>
+            <h2>
+              {query || hasFilters ? "No matching tickets" : "A clean slate"}
+            </h2>
             <p className="muted">
-              {tickets.length
-                ? "Try another search or clear your filters."
+              {query || hasFilters
+                ? "Try another search on this page or clear your filters."
                 : "Create your first ticket whenever you need a hand."}
             </p>
-            {tickets.length > 0 && (
+            {(query || hasFilters) && (
               <button
                 className="btn"
                 onClick={() => {
                   setQuery("");
-                  setStatus("");
-                  setPriority("");
-                  setOwner("");
+                  onFilterChange({ status: "", priority: "", user: "" });
                 }}
               >
                 Clear filters
@@ -186,9 +200,33 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
             )}
           </div>
         )}
-        <div className="list-footer">
-          {filtered.length} {filtered.length === 1 ? "ticket" : "tickets"} ·
-          Saved to your workspace
+        <div className="list-footer pagination-footer">
+          <span role="status">
+            {filtered.length} of {tickets.length} tickets on this page ·{" "}
+            {pagination.count} total
+          </span>
+
+          <nav className="actions" aria-label="Ticket pages">
+            <button
+              className="btn"
+              disabled={busy || !pagination.previous}
+              onClick={() => onPageChange(filters.page - 1)}
+            >
+              <ChevronLeft size={16} />
+              Previous
+            </button>
+
+            <span aria-current="page">Page {filters.page}</span>
+
+            <button
+              className="btn"
+              disabled={busy || !pagination.next}
+              onClick={() => onPageChange(filters.page + 1)}
+            >
+              Next
+              <ChevronRight size={16} />
+            </button>
+          </nav>
         </div>
       </section>
     </>

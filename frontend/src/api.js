@@ -90,7 +90,15 @@ export const api = {
   register: (body) => request("/auth/register/", { method: "POST", body }),
   logout: () => request("/auth/logout/", { method: "POST" }),
   users: (signal) => request("/auth/users/", { signal }),
-  tickets: (signal) => request("/tickets/", { signal }),
+  tickets: (filters, signal) => {
+    const params = new URLSearchParams();
+
+    for (const [name, value] of Object.entries(filters)) {
+      if (value !== "") params.set(name, String(value));
+    }
+
+    return request(`/tickets/?${params}`, { signal });
+  },
   ticket: (id) => request(`/tickets/${id}/`),
   createTicket: (body) => request("/tickets/", { method: "POST", body }),
   updateTicket: (id, body) =>
