@@ -121,12 +121,22 @@ export default function TicketList({ tickets, users, isAdmin, busy, onOpen }) {
             </thead>
             <tbody>
               {filtered.map((ticket) => (
-                <tr key={ticket.id}>
+                <tr
+                  key={ticket.id}
+                  className="ticket-row"
+                  aria-disabled={busy}
+                  onClick={() => {
+                    if (!busy) onOpen(ticket.id);
+                  }}
+                >
                   <td>
                     <button
                       className="ticket-link"
                       disabled={busy}
-                      onClick={() => onOpen(ticket.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpen(ticket.id);
+                      }}
                     >
                       <span className="ticket-id">#{ticket.id}</span>
                       <strong>{ticket.title}</strong>

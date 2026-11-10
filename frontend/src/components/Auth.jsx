@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 import { api } from "../api";
+import PasswordField from "./PasswordField";
 
 export default function Auth({ onLogin }) {
   const [register, setRegister] = useState(false);
@@ -113,28 +114,20 @@ export default function Auth({ onLogin }) {
               </label>
             )}
 
-            <label className="field">
-              Password
-              <input
-                name="password"
-                type="password"
-                minLength={register ? 8 : undefined}
-                autoComplete={register ? "new-password" : "current-password"}
-                required
-              />
-            </label>
+            <PasswordField
+              label="Password"
+              name="password"
+              minLength={register ? 8 : undefined}
+              autoComplete={register ? "new-password" : "current-password"}
+            />
 
             {register && (
-              <label className="field">
-                Confirm password
-                <input
-                  name="confirm_password"
-                  type="password"
-                  minLength={8}
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
+              <PasswordField
+                label="Confirm password"
+                name="confirm_password"
+                minLength={8}
+                autoComplete="new-password"
+              />
             )}
 
             {error && (

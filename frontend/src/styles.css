@@ -748,3 +748,50 @@ fieldset {
     display: none;
   }
 }
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  padding-right: 48px;
+  min-height: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #697487;
+}
+
+.password-toggle:hover:not(:disabled) {
+  color: #2861dd;
+  background: #edf3ff;
+}
+
+.ticket-row:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+.ticket-row:not([aria-disabled="true"]):hover,
+.ticket-row:focus-within {
+  background: #f3f6fc;
+}
+
+.ticket-row:not([aria-disabled="true"]):hover .ticket-link strong,
+.ticket-row:focus-within .ticket-link strong {
+  color: #2861dd;
+}
+
+.ticket-row[aria-disabled="true"] {
+  cursor: wait;
+}
