@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from django.shortcuts import get_object_or_404
 from .serializers import TicketSerializer
@@ -81,7 +81,18 @@ class TicketDetailsView(APIView):
         else:
             queryset = Ticket.objects.filter(user=request.user)
 
-        return get_object_or_404(queryset, pk=pk)   
+        ticket = get_object_or_404(queryset, pk=pk)
+
+        if (
+            not request.user.is_staff
+            and ticket.status == Ticket.Status.RESOLVED
+            and request.method not in SAFE_METHODS
+        ):
+            raise PermissionDenied(
+                "Resolved tickets are read-only. Ask an administrator to reopen this ticket."
+            )
+
+        return ticket
 
     def get(self, request, pk):
         ticket = self.get_ticket(request, pk)

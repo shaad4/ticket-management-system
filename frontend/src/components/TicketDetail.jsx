@@ -17,6 +17,7 @@ export default function TicketDetail({
   onManage,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const isReadOnly = ticket.status === "resolved" && !isAdmin;
 
   return (
     <section className="panel detail">
@@ -52,22 +53,29 @@ export default function TicketDetail({
         />
       )}
 
-      <div className="actions">
-        <button className="btn" onClick={onEdit} disabled={busy}>
-          <Pencil size={15} />
-          Edit ticket
-        </button>
-        <button
-          className="btn danger"
-          onClick={() => setConfirmDelete(true)}
-          disabled={busy}
-        >
-          <Trash2 size={15} />
-          Delete ticket
-        </button>
-      </div>
+      {isReadOnly ? (
+        <p className="notice" role="status">
+          This ticket has been resolved. Ask an administrator to reopen it if you
+          need to make changes.
+        </p>
+      ) : (
+        <div className="actions">
+          <button className="btn" onClick={onEdit} disabled={busy}>
+            <Pencil size={15} />
+            Edit ticket
+          </button>
+          <button
+            className="btn danger"
+            onClick={() => setConfirmDelete(true)}
+            disabled={busy}
+          >
+            <Trash2 size={15} />
+            Delete ticket
+          </button>
+        </div>
+      )}
 
-      {confirmDelete && (
+      {confirmDelete && !isReadOnly && (
         <div className="delete-confirm" role="alert">
           <strong>Delete ticket #{ticket.id}?</strong>
           <p>This permanently deletes the ticket. This cannot be undone.</p>
