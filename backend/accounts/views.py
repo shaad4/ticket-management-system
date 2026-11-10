@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import (
     csrf_protect,
@@ -8,12 +8,13 @@ from django.views.decorators.csrf import (
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.authentication import SessionAuthentication
 
 from .serializers import RegisterSerializer, LoginSerializer
 
 # Create your views here.
+
 
 def user_data(user):
     return {
@@ -31,9 +32,8 @@ class CSRFView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        return Response({
-            "message": "CSRF cookie set."
-        })
+        return Response({"message": "CSRF cookie set."})
+
 
 # REGISTER
 @method_decorator(csrf_protect, name="dispatch")
@@ -47,10 +47,10 @@ class RegisterView(APIView):
 
         user = serializer.save()
 
-        return Response({
-            "message": "Registration successful.",
-            "user": user_data(user)
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {"message": "Registration successful.", "user": user_data(user)},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # LOGIN
@@ -67,22 +67,21 @@ class LoginView(APIView):
         password = serializer.validated_data["password"]
 
         user = authenticate(
-            request=request._request,
-            username=username,
-            password=password
+            request=request._request, username=username, password=password
         )
 
         if user is None:
-            return Response({
-                "detail": "Invalid username or password."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid username or password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         login(request._request, user)
 
-        return Response({
-            "message": "Login successful.",
-            "user": user_data(user)
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Login successful.", "user": user_data(user)},
+            status=status.HTTP_200_OK,
+        )
 
 
 # LOGOUT
@@ -93,9 +92,7 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request._request)
 
-        return Response({
-            "message": "Logout successful."
-        }, status=status.HTTP_200_OK)
+        return Response({"message": "Logout successful."}, status=status.HTTP_200_OK)
 
 
 # CURRENT USER
@@ -104,7 +101,15 @@ class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(
-            user_data(request.user),
-            status=status.HTTP_200_OK
-        )
+        return Response(user_data(request.user), status=status.HTTP_200_OK)
+
+
+class UserListView(APIView):
+    """Expose assignment choices only to staff members."""
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        users = get_user_model().objects.order_by("username").values("id", "username")
+
+        return Response(list(users))

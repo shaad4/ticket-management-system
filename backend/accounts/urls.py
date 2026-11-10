@@ -6,9 +6,11 @@ from .views import (
     LoginView,
     LogoutView,
     CurrentUserView,
+    UserListView,
 )
 
 urlpatterns = [
+    path("users/", UserListView.as_view(), name="user-list"),
     path("csrf/", CSRFView.as_view(), name="csrf"),
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
