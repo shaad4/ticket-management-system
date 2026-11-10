@@ -3,10 +3,12 @@ import { Ticket, LogOut } from "lucide-react";
 import Auth from "./components/Auth";
 import Workspace from "./components/Workspace";
 import { initialTickets, people } from "./data";
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [tickets, setTickets] = useState(initialTickets);
   const [users, setUsers] = useState(people);
+
   function login(account) {
     setUser(account);
     setUsers((current) =>
@@ -15,6 +17,7 @@ export default function App() {
         : [...current, account],
     );
   }
+
   return (
     <div className="app">
       <header>
@@ -34,6 +37,7 @@ export default function App() {
           )}
         </div>
       </header>
+
       {user ? (
         <Workspace
           key={user.id}

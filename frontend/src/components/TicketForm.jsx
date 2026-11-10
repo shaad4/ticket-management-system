@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { priorities } from "../data";
+
 export default function TicketForm({ ticket, onSave, onCancel }) {
   const [error, setError] = useState("");
+
   function submit(event) {
     event.preventDefault();
+
     const data = new FormData(event.currentTarget);
     const title = data.get("title").trim(),
       description = data.get("description").trim();
@@ -11,6 +14,7 @@ export default function TicketForm({ ticket, onSave, onCancel }) {
       return setError("Please add a title and description, not just spaces.");
     onSave({ title, description, priority: data.get("priority") });
   }
+
   return (
     <section className="panel editor">
       <h2>{ticket ? "Edit ticket" : "Tell us what happened"}</h2>

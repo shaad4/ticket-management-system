@@ -14,6 +14,7 @@ import { statuses, priorities } from "../data";
 import TicketForm from "./TicketForm";
 import AdminControls from "./AdminControls";
 import { formatDate, personName } from "../data";
+
 export default function Workspace({ user, users, tickets, setTickets }) {
   const isAdmin = user.role === "admin";
   const [owner, setOwner] = useState("");
@@ -37,10 +38,12 @@ export default function Workspace({ user, users, tickets, setTickets }) {
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
+
   function back() {
     setView("list");
     setConfirmDelete(false);
   }
+
   function save(fields) {
     if (view === "edit") {
       setTickets(
@@ -67,6 +70,7 @@ export default function Workspace({ user, users, tickets, setTickets }) {
       setNotice("Ticket created. We’ll take it from here.");
     }
   }
+
   return (
     <main>
       <div className="page-heading">

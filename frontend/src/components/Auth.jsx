@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+
 export default function Auth({ onLogin }) {
   const [register, setRegister] = useState(false);
   const [error, setError] = useState("");
+
   function submit(event) {
     event.preventDefault();
+
     const data = new FormData(event.currentTarget);
     const name = String(data.get("name") || "").trim();
     if (register && !name) return setError("Please enter your name.");
@@ -16,6 +19,7 @@ export default function Auth({ onLogin }) {
       role: "user",
     });
   }
+
   return (
     <main className="auth-layout">
       <section className="auth-intro">

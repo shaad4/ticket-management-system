@@ -1,5 +1,7 @@
 import { statuses } from "../data";
+
 export default function AdminControls({ ticket, users, onChange }) {
+
   return (
     <section className="admin-controls" aria-label="Admin ticket management">
       <div>
