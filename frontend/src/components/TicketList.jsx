@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+import Loading, { Spinner } from "./Loading";
 import Badge from "./Badge";
 import { statuses, priorities, formatDate } from "../ticketUtils";
 
@@ -16,6 +17,9 @@ export default function TicketList({
   users,
   isAdmin,
   busy,
+  loading,
+  loadFailed,
+  openingId,
   onOpen,
   filters,
   pagination,
@@ -23,6 +27,19 @@ export default function TicketList({
   onPageChange,
 }) {
   const [query, setQuery] = useState("");
+
+  // Keep this component mounted so refreshes preserve the search query.
+  if (loading) {
+    return <Loading skeleton>Loading tickets…</Loading>;
+  }
+
+  if (loadFailed) {
+    return (
+      <p className="muted">
+        Tickets could not be loaded. Use Refresh to try again.
+      </p>
+    );
+  }
 
   const hasFilters = Boolean(
     filters.status || filters.priority || filters.user,
@@ -57,7 +74,7 @@ export default function TicketList({
           </h2>
           <span className="muted">Made for moving forward.</span>
         </div>
-        <div className="filters">
+        <fieldset className="filters" disabled={busy} aria-label="Ticket filters">
           <label className="search-wrap">
             <Search size={17} />
             <input
@@ -118,7 +135,7 @@ export default function TicketList({
               </select>
             </label>
           )}
-        </div>
+        </fieldset>
         <div className="table-wrap">
           <table>
             <thead>
@@ -165,11 +182,11 @@ export default function TicketList({
                   </td>
                   <td className="date">{formatDate(ticket.created_at)}</td>
                   <td>
-                    <ArrowUpRight
-                      size={16}
-                      className="muted"
-                      aria-hidden="true"
-                    />
+                    {openingId === ticket.id ? (
+                      <Spinner />
+                    ) : (
+                      <ArrowUpRight size={16} className="muted" aria-hidden="true" />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -186,7 +203,11 @@ export default function TicketList({
               >
                 <span className="mobile-ticket-heading">
                   <span className="ticket-id">#{ticket.id}</span>
-                  <ArrowUpRight size={17} aria-hidden="true" />
+                  {openingId === ticket.id ? (
+                    <Spinner />
+                  ) : (
+                    <ArrowUpRight size={17} aria-hidden="true" />
+                  )}
                 </span>
 
                 <strong className="mobile-ticket-title">{ticket.title}</strong>
@@ -219,6 +240,7 @@ export default function TicketList({
             {(query || hasFilters) && (
               <button
                 className="btn"
+                disabled={busy}
                 onClick={() => {
                   setQuery("");
                   onFilterChange({ status: "", priority: "", user: "" });

@@ -1026,3 +1026,70 @@ fieldset {
     line-height: 1.6;
   }
 }
+
+/* Share one quiet loading treatment across forms, tables, and mobile cards. */
+.spinner {
+  flex-shrink: 0;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+.loading-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: #697487;
+  font-size: 14px;
+}
+
+.loading-status {
+  margin-bottom: 20px;
+}
+
+.loading-panel {
+  padding: 24px;
+}
+
+.loading-skeleton {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.skeleton-row {
+  display: grid;
+  gap: 12px;
+  padding-block: 16px;
+  border-top: 1px solid #edf0f3;
+}
+
+.skeleton-line {
+  display: block;
+  width: 70%;
+  height: 14px;
+  border-radius: 6px;
+  background: #edf0f4;
+}
+
+.skeleton-line.short {
+  width: 35%;
+  height: 10px;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .loading-panel {
+    padding: 20px;
+  }
+}

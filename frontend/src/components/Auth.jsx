@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 import { api } from "../api";
+import { Spinner } from "./Loading";
 import PasswordField from "./PasswordField";
 
 export default function Auth({ onLogin }) {
@@ -12,6 +13,7 @@ export default function Auth({ onLogin }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (saving) return;
 
     const data = new FormData(event.currentTarget);
     const username = data.get("username").trim();
@@ -56,6 +58,8 @@ export default function Auth({ onLogin }) {
     }
   }
 
+  const savingMessage = register ? "Creating account…" : "Signing in…";
+
   return (
     <main className="auth-layout">
       <section className="auth-intro">
@@ -90,7 +94,16 @@ export default function Auth({ onLogin }) {
           </p>
         )}
 
-        <form className="form-stack" onSubmit={submit} key={String(register)}>
+        <div className="sr-only" role="status">
+          {saving ? savingMessage : ""}
+        </div>
+
+        <form
+          className="form-stack"
+          onSubmit={submit}
+          key={String(register)}
+          aria-busy={saving}
+        >
           <fieldset className="form-stack" disabled={saving}>
             <label className="field">
               Username
@@ -138,11 +151,11 @@ export default function Auth({ onLogin }) {
 
             <button className="btn primary" type="submit">
               {saving
-                ? "Please wait…"
+                ? savingMessage
                 : register
                   ? "Create account"
                   : "Sign in"}
-              <ArrowRight size={16} />
+              {saving ? <Spinner /> : <ArrowRight size={16} />}
             </button>
           </fieldset>
         </form>

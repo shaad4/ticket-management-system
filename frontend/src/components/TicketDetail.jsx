@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
+import { Spinner } from "./Loading";
 import Badge from "./Badge";
 import AdminControls from "./AdminControls";
 import { formatDate } from "../ticketUtils";
@@ -10,6 +11,7 @@ export default function TicketDetail({
   users,
   isAdmin,
   busy,
+  deleting,
   onEdit,
   onDelete,
   onManage,
@@ -72,7 +74,8 @@ export default function TicketDetail({
 
           <div className="actions">
             <button className="btn danger" onClick={onDelete} disabled={busy}>
-              Yes, delete ticket
+              {deleting && <Spinner />}
+              {deleting ? "Deleting…" : "Yes, delete ticket"}
             </button>
             <button
               className="btn"

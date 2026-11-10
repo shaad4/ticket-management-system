@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Ticket, LogOut } from "lucide-react";
 
 import { api } from "./api";
+import Loading, { Spinner } from "./components/Loading";
 import Auth from "./components/Auth";
 import Workspace from "./components/Workspace";
 
@@ -57,6 +58,10 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="sr-only" role="status">
+        {signingOut ? "Signing out…" : ""}
+      </div>
+
       <header>
         <div className="brand">
           <span className="brand-icon">
@@ -73,7 +78,7 @@ export default function App() {
               onClick={signOut}
               disabled={signingOut}
             >
-              <LogOut size={16} />
+              {signingOut ? <Spinner /> : <LogOut size={16} />}
               {signingOut ? "Signing out…" : "Sign out"}
             </button>
           </div>
@@ -93,9 +98,7 @@ export default function App() {
 
       {loading ? (
         <main>
-          <p role="status" className="muted">
-            Loading your workspace…
-          </p>
+          <Loading skeleton>Loading your workspace…</Loading>
         </main>
       ) : user ? (
         <Workspace

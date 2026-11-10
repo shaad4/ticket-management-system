@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, ArrowLeft, RefreshCw } from "lucide-react";
 
 import { api } from "../api";
+import Loading, { Spinner } from "./Loading";
 import TicketList from "./TicketList";
 import TicketDetail from "./TicketDetail";
 import TicketForm from "./TicketForm";
@@ -24,12 +25,14 @@ export default function Workspace({ user, onSessionExpired }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState("");
+  const [openingId, setOpeningId] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [refresh, setRefresh] = useState(0);
 
   const isAdmin = user.is_staff;
+  const busy = Boolean(pendingAction);
 
   useEffect(() => {
     if (view !== "list") return;
@@ -100,7 +103,10 @@ export default function Workspace({ user, onSessionExpired }) {
   }
 
   async function openTicket(id) {
-    setBusy(true);
+    if (busy) return;
+
+    setOpeningId(id);
+    setPendingAction("Opening ticket…");
     setError("");
     setNotice("");
 
@@ -111,12 +117,15 @@ export default function Workspace({ user, onSessionExpired }) {
     } catch (error) {
       showError(error);
     } finally {
-      setBusy(false);
+      setPendingAction("");
+      setOpeningId(null);
     }
   }
 
   async function save(fields) {
-    setBusy(true);
+    if (busy) return;
+
+    setPendingAction(view === "edit" ? "Saving changes…" : "Creating ticket…");
     setError("");
     setNotice("");
 
@@ -135,12 +144,14 @@ export default function Workspace({ user, onSessionExpired }) {
     } catch (error) {
       showError(error);
     } finally {
-      setBusy(false);
+      setPendingAction("");
     }
   }
 
   async function updateManagement(fields) {
-    setBusy(true);
+    if (busy) return;
+
+    setPendingAction(fields.status ? "Updating status…" : "Updating assignment…");
     setError("");
     setNotice("");
 
@@ -150,12 +161,14 @@ export default function Workspace({ user, onSessionExpired }) {
     } catch (error) {
       showError(error);
     } finally {
-      setBusy(false);
+      setPendingAction("");
     }
   }
 
   async function deleteTicket() {
-    setBusy(true);
+    if (busy) return;
+
+    setPendingAction("Deleting ticket…");
     setError("");
     setNotice("");
 
@@ -172,7 +185,7 @@ export default function Workspace({ user, onSessionExpired }) {
     } catch (error) {
       showError(error);
     } finally {
-      setBusy(false);
+      setPendingAction("");
     }
   }
 
@@ -200,10 +213,13 @@ export default function Workspace({ user, onSessionExpired }) {
             <button
               className="btn"
               disabled={loading || busy}
-              onClick={() => setRefresh(refresh + 1)}
+              onClick={() => {
+                setLoading(true);
+                setRefresh(refresh + 1);
+              }}
             >
-              <RefreshCw size={16} />
-              Refresh
+              {loading ? <Spinner /> : <RefreshCw size={16} />}
+              {loading ? "Loading…" : "Refresh"}
             </button>
             <button
               className="btn primary"
@@ -234,26 +250,17 @@ export default function Workspace({ user, onSessionExpired }) {
       <div role="status" className={notice ? "notice" : ""}>
         {notice}
       </div>
-      {busy && (
-        <p className="muted" role="status">
-          Please wait…
-        </p>
-      )}
+      {busy && <Loading>{pendingAction}</Loading>}
 
-      {view === "list" && loading ? (
-        <p className="muted" role="status">
-          Loading tickets…
-        </p>
-      ) : view === "list" && loadFailed ? (
-        <p className="muted">
-          Tickets could not be loaded. Use Refresh to try again.
-        </p>
-      ) : view === "list" ? (
+      {view === "list" ? (
         <TicketList
           tickets={tickets}
           users={users}
           isAdmin={isAdmin}
           busy={busy}
+          loading={loading}
+          loadFailed={loadFailed}
+          openingId={openingId}
           onOpen={openTicket}
           filters={filters}
           pagination={pagination}
@@ -277,6 +284,7 @@ export default function Workspace({ user, onSessionExpired }) {
           users={users}
           isAdmin={isAdmin}
           busy={busy}
+          deleting={pendingAction === "Deleting ticket…"}
           onEdit={() => {
             setView("edit");
             setError("");
