@@ -1,75 +1,152 @@
-import { useState } from "react";
-import {
-  Plus,
-  ArrowLeft,
-  ArrowUpRight,
-  Search,
-  Ticket,
-  Pencil,
-  Trash2,
-  Inbox,
-} from "lucide-react";
-import Badge from "./Badge";
-import { statuses, priorities } from "../data";
-import TicketForm from "./TicketForm";
-import AdminControls from "./AdminControls";
-import { formatDate, personName } from "../data";
+import { useEffect, useState } from "react";
+import { Plus, ArrowLeft, RefreshCw } from "lucide-react";
 
-export default function Workspace({ user, users, tickets, setTickets }) {
-  const isAdmin = user.role === "admin";
-  const [owner, setOwner] = useState("");
+import { api } from "../api";
+import TicketList from "./TicketList";
+import TicketDetail from "./TicketDetail";
+import TicketForm from "./TicketForm";
+
+export default function Workspace({ user, onSessionExpired }) {
+  const [tickets, setTickets] = useState([]);
+  const [users, setUsers] = useState([]);
   const [view, setView] = useState("list");
-  const [selectedId, setSelectedId] = useState(null);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
-  const [priority, setPriority] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const ownTickets = isAdmin
-    ? tickets
-    : tickets.filter((ticket) => ticket.user === user.id);
-  const selected = ownTickets.find((ticket) => ticket.id === selectedId);
-  const filtered = ownTickets.filter(
-    (ticket) =>
-      (!owner || ticket.user === owner) &&
-      (!status || ticket.status === status) &&
-      (!priority || ticket.priority === priority) &&
-      `${ticket.title} ${ticket.id}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-  );
+  const [refresh, setRefresh] = useState(0);
+
+  const isAdmin = user.is_staff;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadWorkspace() {
+      setLoading(true);
+      setLoadFailed(false);
+      setError("");
+
+      try {
+        const [ticketList, userList] = await Promise.all([
+          api.tickets(controller.signal),
+          isAdmin ? api.users(controller.signal) : Promise.resolve([]),
+        ]);
+
+        setTickets(ticketList);
+        setUsers(userList);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        setLoadFailed(true);
+        if (error.sessionExpired) onSessionExpired();
+        else setError(error.message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    loadWorkspace();
+
+    return () => controller.abort();
+  }, [isAdmin, onSessionExpired, refresh]);
+
+  function showError(error) {
+    if (error.sessionExpired) onSessionExpired();
+    else setError(error.message);
+  }
+
+  function replaceTicket(updated) {
+    setSelected(updated);
+    setTickets((current) =>
+      current.map((ticket) => (ticket.id === updated.id ? updated : ticket)),
+    );
+  }
 
   function back() {
     setView("list");
-    setConfirmDelete(false);
+    setError("");
+    setNotice("");
   }
 
-  function save(fields) {
-    if (view === "edit") {
-      setTickets(
-        tickets.map((ticket) =>
-          ticket.id === selectedId
-            ? { ...ticket, ...fields, updated_at: new Date().toISOString() }
-            : ticket,
-        ),
-      );
+  async function openTicket(id) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const ticket = await api.ticket(id);
+      replaceTicket(ticket);
       setView("detail");
-      setNotice("Ticket updated.");
-    } else {
-      const ticket = {
-        ...fields,
-        id: Math.max(1000, ...tickets.map((item) => item.id)) + 1,
-        status: "open",
-        user: user.id,
-        assigned_to: "",
-        created_at: new Date().toISOString(),
-      };
-      setTickets([ticket, ...tickets]);
-      setSelectedId(ticket.id);
-      setView("detail");
-      setNotice("Ticket created. We’ll take it from here.");
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
     }
   }
+
+  async function save(fields) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+
+    try {
+      if (view === "edit") {
+        replaceTicket(await api.updateTicket(selected.id, fields));
+        setNotice("Ticket updated.");
+      } else {
+        const ticket = await api.createTicket(fields);
+        setTickets((current) => [ticket, ...current]);
+        setSelected(ticket);
+        setNotice("Ticket created. We’ll take it from here.");
+      }
+
+      setView("detail");
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateManagement(fields) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+
+    try {
+      replaceTicket(await api.updateTicket(selected.id, fields));
+      setNotice("Ticket management updated.");
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteTicket() {
+    setBusy(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await api.deleteTicket(selected.id);
+      setTickets((current) =>
+        current.filter((ticket) => ticket.id !== selected.id),
+      );
+      setSelected(null);
+      setView("list");
+      setNotice("Ticket deleted.");
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  let title = isAdmin ? "All tickets" : "My tickets";
+  if (view === "new") title = "Create a ticket";
+  if (view === "detail" || view === "edit") title = `Ticket #${selected.id}`;
 
   return (
     <main>
@@ -78,311 +155,101 @@ export default function Workspace({ user, users, tickets, setTickets }) {
           <p className="eyebrow">
             {isAdmin ? "ADMIN WORKSPACE" : "YOUR WORKSPACE"}
           </p>
-          <h1>
-            {view === "list"
-              ? isAdmin
-                ? "All tickets"
-                : "My tickets"
-              : view === "new"
-                ? "Create a ticket"
-                : `Ticket #${selectedId}`}
-          </h1>
+          <h1>{title}</h1>
           <p className="muted">
-            {view === "list"
-              ? isAdmin
-                ? "Keep every request moving. One team, one clear view."
-                : "A clear view of your requests, from start to solved."
-              : "Every detail, in one place."}
+            {isAdmin
+              ? "Keep every request moving. One team, one clear view."
+              : "A clear view of your requests, from start to solved."}
           </p>
         </div>
+
         {view === "list" ? (
-          <button
-            className="btn primary"
-            onClick={() => {
-              setView("new");
-              setNotice("");
-            }}
-          >
-            <Plus size={17} />
-            New ticket
-          </button>
+          <div className="actions">
+            <button
+              className="btn"
+              disabled={loading || busy}
+              onClick={() => setRefresh(refresh + 1)}
+            >
+              <RefreshCw size={16} />
+              Refresh
+            </button>
+            <button
+              className="btn primary"
+              disabled={loading || busy}
+              onClick={() => {
+                setView("new");
+                setError("");
+                setNotice("");
+              }}
+            >
+              <Plus size={17} />
+              New ticket
+            </button>
+          </div>
         ) : (
-          <button className="btn" onClick={back}>
+          <button className="btn" onClick={back} disabled={busy}>
             <ArrowLeft size={16} />
             All tickets
           </button>
         )}
       </div>
+
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div role="status" className={notice ? "notice" : ""}>
         {notice}
       </div>
-      {view === "list" && (
-        <>
-          <div className="stats">
-            {Object.entries(statuses).map(([value, label]) => (
-              <div className="panel stat" key={value}>
-                <span className={`stat-icon ${value}`}>
-                  <Ticket size={19} />
-                </span>
-                <div>
-                  <p>{label}</p>
-                  <strong>
-                    {
-                      ownTickets.filter((ticket) => ticket.status === value)
-                        .length
-                    }
-                  </strong>
-                </div>
-              </div>
-            ))}
-          </div>
-          <section className="panel ticket-list" aria-label="Tickets">
-            <div className="list-heading">
-              <h2>
-                {isAdmin ? "Team requests" : "Your requests"}{" "}
-                <span className="count">{ownTickets.length}</span>
-              </h2>
-              <span className="muted">Made for moving forward.</span>
-            </div>
-            <div className="filters">
-              <label className="search-wrap">
-                <Search size={17} />
-                <input
-                  className="search"
-                  aria-label="Search tickets"
-                  placeholder="Search by title or ticket number…"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span className="sr-only">Filter by status</span>
-                <select
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value)}
-                >
-                  <option value="">All statuses</option>
-                  {Object.entries(statuses).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="sr-only">Filter by priority</span>
-                <select
-                  value={priority}
-                  onChange={(event) => setPriority(event.target.value)}
-                >
-                  <option value="">All priorities</option>
-                  {Object.entries(priorities).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {isAdmin && (
-                <label className="field">
-                  <span className="sr-only">Filter by creator</span>
-                  <select
-                    value={owner}
-                    onChange={(event) => setOwner(event.target.value)}
-                  >
-                    <option value="">All creators</option>
-                    {[...new Set(tickets.map((ticket) => ticket.user))].map(
-                      (id) => (
-                        <option key={id} value={id}>
-                          {personName(id, users)}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </label>
-              )}
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Ticket</th>
-                    {isAdmin && <th>Creator</th>}
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Created</th>
-                    <th>
-                      <span className="sr-only">Open ticket</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((ticket) => (
-                    <tr key={ticket.id}>
-                      <td>
-                        <button
-                          className="ticket-link"
-                          onClick={() => {
-                            setSelectedId(ticket.id);
-                            setView("detail");
-                            setNotice("");
-                          }}
-                        >
-                          <span className="ticket-id">#{ticket.id}</span>
-                          <strong>{ticket.title}</strong>
-                        </button>
-                      </td>
-                      {isAdmin && (
-                        <td className="date">
-                          {personName(ticket.user, users)}
-                        </td>
-                      )}
-                      <td>
-                        <Badge value={ticket.status} />
-                      </td>
-                      <td>
-                        <Badge value={ticket.priority} />
-                      </td>
-                      <td className="date">{formatDate(ticket.created_at)}</td>
-                      <td>
-                        <ArrowUpRight
-                          size={16}
-                          className="muted"
-                          aria-hidden="true"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {!filtered.length && (
-              <div className="empty">
-                <Inbox size={30} />
-                <h2>
-                  {ownTickets.length ? "No matching tickets" : "A clean slate"}
-                </h2>
-                <p className="muted">
-                  {ownTickets.length
-                    ? "Try another search or clear your filters."
-                    : "Create your first ticket whenever you need a hand."}
-                </p>
-                {ownTickets.length > 0 && (
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      setQuery("");
-                      setStatus("");
-                      setPriority("");
-                      setOwner("");
-                    }}
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="list-footer">
-              {filtered.length} {filtered.length === 1 ? "ticket" : "tickets"} ·
-              All changes stay in this session
-            </div>
-          </section>
-        </>
+      {busy && (
+        <p className="muted" role="status">
+          Please wait…
+        </p>
       )}
-      {(view === "new" || view === "edit") && (
+
+      {loading ? (
+        <p className="muted" role="status">
+          Loading tickets…
+        </p>
+      ) : view === "list" && loadFailed ? (
+        <p className="muted">
+          Tickets could not be loaded. Use Refresh to try again.
+        </p>
+      ) : view === "list" ? (
+        <TicketList
+          tickets={tickets}
+          users={users}
+          isAdmin={isAdmin}
+          busy={busy}
+          onOpen={openTicket}
+        />
+      ) : view === "new" || view === "edit" ? (
         <TicketForm
-          key={view + selectedId}
           ticket={view === "edit" ? selected : null}
+          busy={busy}
           onSave={save}
-          onCancel={() => setView(view === "edit" ? "detail" : "list")}
+          onCancel={() => {
+            setView(view === "edit" ? "detail" : "list");
+            setError("");
+          }}
+        />
+      ) : (
+        <TicketDetail
+          ticket={selected}
+          users={users}
+          isAdmin={isAdmin}
+          busy={busy}
+          onEdit={() => {
+            setView("edit");
+            setError("");
+            setNotice("");
+          }}
+          onDelete={deleteTicket}
+          onManage={updateManagement}
         />
       )}
-      {view === "detail" && selected && (
-        <section className="panel detail">
-          <div className="actions">
-            <Badge value={selected.status} />
-            <Badge value={selected.priority} />
-          </div>
-          <h2>{selected.title}</h2>
-          <p className="description">{selected.description}</p>
-          <dl className="metadata">
-            <div>
-              <dt>Created by</dt>
-              <dd>{personName(selected.user, users)}</dd>
-            </div>
-            <div>
-              <dt>Assigned to</dt>
-              <dd>{personName(selected.assigned_to, users)}</dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd>{formatDate(selected.created_at)}</dd>
-            </div>
-          </dl>
-          {isAdmin && (
-            <AdminControls
-              ticket={selected}
-              users={users}
-              onChange={(fields) => {
-                setTickets(
-                  tickets.map((ticket) =>
-                    ticket.id === selected.id
-                      ? {
-                          ...ticket,
-                          ...fields,
-                          updated_at: new Date().toISOString(),
-                        }
-                      : ticket,
-                  ),
-                );
-                setNotice("Ticket management updated.");
-              }}
-            />
-          )}
-          <div className="actions">
-            <button
-              className="btn"
-              onClick={() => {
-                setView("edit");
-                setNotice("");
-              }}
-            >
-              <Pencil size={15} />
-              Edit ticket
-            </button>
-            <button
-              className="btn danger"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 size={15} />
-              Delete ticket
-            </button>
-          </div>
-          {confirmDelete && (
-            <div className="delete-confirm" role="alert">
-              <strong>Delete ticket #{selected.id}?</strong>
-              <p>This removes the ticket from this demo session.</p>
-              <div className="actions">
-                <button
-                  className="btn danger"
-                  onClick={() => {
-                    setTickets(
-                      tickets.filter((ticket) => ticket.id !== selected.id),
-                    );
-                    back();
-                    setNotice("Ticket deleted.");
-                  }}
-                >
-                  Yes, delete ticket
-                </button>
-                <button className="btn" onClick={() => setConfirmDelete(false)}>
-                  Keep ticket
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
+
       <footer>
         Ticket Desk <span>Thoughtfully simple support.</span>
       </footer>

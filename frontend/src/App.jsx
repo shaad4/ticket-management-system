@@ -1,21 +1,58 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Ticket, LogOut } from "lucide-react";
+
+import { api } from "./api";
 import Auth from "./components/Auth";
 import Workspace from "./components/Workspace";
-import { initialTickets, people } from "./data";
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [tickets, setTickets] = useState(initialTickets);
-  const [users, setUsers] = useState(people);
+  const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
 
-  function login(account) {
-    setUser(account);
-    setUsers((current) =>
-      current.some((person) => person.id === account.id)
-        ? current
-        : [...current, account],
-    );
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function restoreSession() {
+      setLoading(true);
+      setError("");
+
+      try {
+        setUser(await api.currentUser(controller.signal));
+      } catch (error) {
+        if (error.name !== "AbortError" && !error.sessionExpired) {
+          setError(error.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => controller.abort();
+  }, [retry]);
+
+  const sessionExpired = useCallback(() => {
+    setUser(null);
+    setError("");
+  }, []);
+
+  async function signOut() {
+    setSigningOut(true);
+    setError("");
+
+    try {
+      await api.logout();
+      setUser(null);
+    } catch (error) {
+      if (error.sessionExpired) setUser(null);
+      else setError(error.message);
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -27,27 +64,52 @@ export default function App() {
           </span>
           Ticket Desk
         </div>
-        <div className="actions">
-          <span className="demo-label">LOCAL DEMO</span>
-          {user && (
-            <button className="btn quiet" onClick={() => setUser(null)}>
+
+        {user && (
+          <div className="actions">
+            <span className="account-name">{user.username}</span>
+            <button
+              className="btn quiet"
+              onClick={signOut}
+              disabled={signingOut}
+            >
               <LogOut size={16} />
-              Sign out
+              {signingOut ? "Signing out…" : "Sign out"}
+            </button>
+          </div>
+        )}
+      </header>
+
+      {error && (
+        <div className="app-error" role="alert">
+          <p>{error}</p>
+          {!user && (
+            <button className="btn" onClick={() => setRetry(retry + 1)}>
+              Retry connection
             </button>
           )}
         </div>
-      </header>
+      )}
 
-      {user ? (
+      {loading ? (
+        <main>
+          <p role="status" className="muted">
+            Loading your workspace…
+          </p>
+        </main>
+      ) : user ? (
         <Workspace
           key={user.id}
           user={user}
-          users={users}
-          tickets={tickets}
-          setTickets={setTickets}
+          onSessionExpired={sessionExpired}
         />
       ) : (
-        <Auth onLogin={login} />
+        <Auth
+          onLogin={(account) => {
+            setUser(account);
+            setError("");
+          }}
+        />
       )}
     </div>
   );

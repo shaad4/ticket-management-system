@@ -6,7 +6,7 @@ import {
   Minus,
   ArrowUp,
 } from "lucide-react";
-import { statuses, priorities } from "../data";
+import { statuses, priorities } from "../ticketUtils";
 const icons = {
   open: Circle,
   "in-progress": CircleDashed,

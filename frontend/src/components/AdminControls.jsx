@@ -1,7 +1,6 @@
-import { statuses } from "../data";
+import { statuses } from "../ticketUtils";
 
-export default function AdminControls({ ticket, users, onChange }) {
-
+export default function AdminControls({ ticket, users, busy, onChange }) {
   return (
     <section className="admin-controls" aria-label="Admin ticket management">
       <div>
@@ -14,6 +13,7 @@ export default function AdminControls({ ticket, users, onChange }) {
         <label className="field">
           Status
           <select
+            disabled={busy}
             value={ticket.status}
             onChange={(event) => onChange({ status: event.target.value })}
           >
@@ -27,13 +27,20 @@ export default function AdminControls({ ticket, users, onChange }) {
         <label className="field">
           Assign to
           <select
-            value={ticket.assigned_to}
-            onChange={(event) => onChange({ assigned_to: event.target.value })}
+            disabled={busy}
+            value={ticket.assigned_to ?? ""}
+            onChange={(event) =>
+              onChange({
+                assigned_to: event.target.value
+                  ? Number(event.target.value)
+                  : null,
+              })
+            }
           >
             <option value="">Unassigned</option>
             {users.map((person) => (
               <option value={person.id} key={person.id}>
-                {person.name}
+                {person.username}
               </option>
             ))}
           </select>

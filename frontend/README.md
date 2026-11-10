@@ -1,10 +1,21 @@
 # Ticket Desk frontend
 
-A small React + Vite + Tailwind frontend for the Django ticket management assignment. Lucide supplies the icons. No API client, router, or state library is needed for this demo.
+React + Vite + Tailwind frontend connected to the Django session-authenticated API. Icons come from Lucide. State stays in ordinary React components; requests use the browser's built-in `fetch`.
 
-## Run
+## Run locally
 
-Requires Node.js 20.19+ or 22.12+ (verified with Node 24).
+Requires Node.js 20.19+ or 22.12+ and the existing backend Python environment.
+
+Start PostgreSQL with the credentials configured in `backend/.env`, then start Django from the repository root:
+
+```sh
+cd backend
+source .venv/bin/activate
+python manage.py migrate
+python manage.py runserver 127.0.0.1:8000
+```
+
+In another terminal:
 
 ```sh
 cd frontend
@@ -12,7 +23,41 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Use **Try user demo** for Alex's tickets or **Try admin demo** for all tickets. Sign out to switch roles. Changes remain available when switching roles until the page reloads.
+Open http://localhost:5173. Register an account, then sign in with its **username and password**. Staff accounts see the admin workspace automatically; there is no demo role switch. To create an administrator, run `python manage.py createsuperuser` from the backend directory.
+
+Vite proxies `/api` to `http://127.0.0.1:8000`. To change the target, copy `frontend/.env.example` to `frontend/.env` and set `API_TARGET`, then restart Vite. The dev and preview servers use port 5173 with `strictPort` so the CSRF origin stays predictable. If you change the frontend port, add its full origin to `CSRF_TRUSTED_ORIGINS` in `backend/.env` and restart Django.
+
+## What is connected
+
+| Action | Endpoint |
+| --- | --- |
+| Set CSRF cookie | `GET /api/auth/csrf/` |
+| Register | `POST /api/auth/register/` |
+| Login / logout | `POST /api/auth/login/`, `POST /api/auth/logout/` |
+| Restore session | `GET /api/auth/me/` |
+| Admin assignment choices | `GET /api/auth/users/` (staff only) |
+| Ticket list / create | `GET /api/tickets/`, `POST /api/tickets/` |
+| Ticket detail / edit / delete | `GET`, `PATCH`, `DELETE /api/tickets/:id/` |
+
+There are no mock users or tickets. New accounts start with an empty dashboard. Django persists changes and enforces permissions. Refresh restores the session from the HTTP-only session cookie. The frontend reads the CSRF cookie for each mutation, including after login rotates it. Credentials and session tokens are not stored in localStorage.
+
+Search and filters operate on the authorized ticket list returned by Django. Refresh reloads that list. Detail views fetch the latest ticket. Save and delete controls wait for successful API responses; failed saves preserve the form. Registration displays backend validation errors and returns to sign-in after success.
+
+## Code map
+
+- `src/api.js`: small shared request helper and named API calls.
+- `src/App.jsx`: session restoration, login state, and logout.
+- `src/components/Auth.jsx`: login and registration forms.
+- `src/components/Workspace.jsx`: loading tickets and coordinating API operations.
+- `src/components/TicketList.jsx`: summary, search, filters, and ticket table.
+- `src/components/TicketDetail.jsx`: ticket information and delete confirmation.
+- `src/components/TicketForm.jsx`: shared create/edit form.
+- `src/components/AdminControls.jsx`: status and assignment controls.
+- `src/components/Badge.jsx`: status and priority labels with icons.
+- `src/ticketUtils.js`: label constants and date formatting, no sample data.
+- `src/styles.css`: responsive styling.
+
+## Checks
 
 ```sh
 npm run lint
@@ -20,25 +65,6 @@ npm run build
 npm run preview
 ```
 
-## Demo behavior
+Backend integration coverage lives in `backend/accounts/tests.py`. With permission to create a PostgreSQL test database, run `python manage.py test accounts` from the backend directory. Tests cover CSRF, registration, login/logout, ticket CRUD and ownership, staff-only user lookup, status changes, and assignment.
 
-- Login accepts any valid email and password of at least eight characters and opens the Alex demo account. No credentials are verified or stored.
-- Registration checks the name, email, password length, and password confirmation, then opens a new local session with an empty dashboard. It does not create a persistent account.
-- Users see their own tickets and can create, view, edit, and delete them. Deletion asks for confirmation.
-- Admins see all tickets, filter by creator, and change status or assignment in ticket details. Admins can also create, edit, and delete tickets.
-- Search and status/priority filters work together. Summary counts describe the whole visible workspace, independent of filters.
-- Everything lives in React state. Reloading resets all changes. There are no backend requests, cookies, tokens, or browser storage.
-- Role restrictions are demo UI behavior, not security enforcement. Real authorization belongs in Django when integration is added.
-
-## Code map
-
-- `src/App.jsx`: local session and shared ticket state.
-- `src/data.js`: mock people/tickets and display helpers; field names match Django.
-- `src/components/Auth.jsx`: login, registration, and demo entry points.
-- `src/components/Workspace.jsx`: dashboard, filters, ticket details, and local CRUD.
-- `src/components/TicketForm.jsx`: shared create/edit form.
-- `src/components/AdminControls.jsx`: status and assignment controls.
-- `src/components/Badge.jsx`: compact status/priority labels with icons.
-- `src/styles.css`: restrained responsive styling alongside Tailwind's reset/utilities.
-
-The screens use component state rather than URL routing to keep this machine task easy to explain. A later backend phase can replace state updates with Django requests and add actual authentication, CSRF handling, loading/error states, and persistent sessions. No backend files were changed.
+For deployment, serve the frontend and `/api` on the same origin through your web server. Vite's development proxy is not a production server. Configure Django's deployment settings and exact trusted origins for your deployment.
