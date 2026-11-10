@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 
 from django.shortcuts import get_object_or_404
 from .serializers import TicketSerializer
+from .pagination import TicketPagination
 from .models import Ticket
 
 
@@ -43,8 +44,14 @@ class TicketListCreateView(APIView):
 
         tickets = tickets.order_by("-created_at")
 
-        serializer = TicketSerializer(tickets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = TicketPagination()
+        page = paginator.paginate_queryset(tickets, request)
+
+        serializer = TicketSerializer(page, many=True)
+
+        return paginator.get_paginated_response(
+            serializer.data
+        )
 
 
     
