@@ -14,3 +14,9 @@ Django REST Framework, PostgreSQL, React, and Tailwind CSS.
 - Backend: Django, Django REST Framework
 - Database: PostgreSQL
 - Frontend: React, Tailwind CSS
+
+## Local setup
+
+See [the setup guide](frontend/README.md) for Python environment creation, backend dependency installation, database configuration, and running both servers.
+
+Python dependencies are pinned in [backend/requirements.txt](backend/requirements.txt).

@@ -4,13 +4,21 @@ React + Vite + Tailwind frontend connected to the Django session-authenticated A
 
 ## Run locally
 
-Requires Node.js 20.19+ or 22.12+ and the existing backend Python environment.
+Requires Python 3.12+, PostgreSQL, and Node.js 20.19+ or 22.12+.
 
-Start PostgreSQL with the credentials configured in `backend/.env`, then start Django from the repository root:
+Create a PostgreSQL database and user. From the repository root, create the Python environment and install dependencies:
 
 ```sh
 cd backend
+python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `backend/.env` with your database name, user, and password before continuing:
+
+```sh
 python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
 ```
@@ -65,6 +73,6 @@ npm run build
 npm run preview
 ```
 
-Backend integration coverage lives in `backend/accounts/tests.py`. With permission to create a PostgreSQL test database, run `python manage.py test accounts` from the backend directory. Tests cover CSRF, registration, login/logout, ticket CRUD and ownership, staff-only user lookup, status changes, and assignment.
+Backend test files are retained as empty placeholders for now.
 
 For deployment, serve the frontend and `/api` on the same origin through your web server. Vite's development proxy is not a production server. Configure Django's deployment settings and exact trusted origins for your deployment.

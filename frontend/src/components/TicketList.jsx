@@ -63,7 +63,7 @@ export default function TicketList({
             <input
               className="search"
               aria-label="Search tickets on this page"
-              placeholder="Search this page by title or ticket number…"
+              placeholder="Search this page…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -101,7 +101,7 @@ export default function TicketList({
             </select>
           </label>
           {isAdmin && (
-            <label className="field">
+            <label className="field creator-filter">
               <span className="sr-only">Filter by creator</span>
               <select
                 value={filters.user}
@@ -176,6 +176,35 @@ export default function TicketList({
             </tbody>
           </table>
         </div>
+        <ul className="mobile-ticket-list" aria-label="Ticket list">
+          {filtered.map((ticket) => (
+            <li key={ticket.id}>
+              <button
+                className="mobile-ticket-card"
+                disabled={busy}
+                onClick={() => onOpen(ticket.id)}
+              >
+                <span className="mobile-ticket-heading">
+                  <span className="ticket-id">#{ticket.id}</span>
+                  <ArrowUpRight size={17} aria-hidden="true" />
+                </span>
+
+                <strong className="mobile-ticket-title">{ticket.title}</strong>
+
+                <span className="mobile-ticket-badges">
+                  <Badge value={ticket.status} />
+                  <Badge value={ticket.priority} />
+                </span>
+
+                <span className="mobile-ticket-meta">
+                  {isAdmin && <span>By {ticket.user_username}</span>}
+                  <span>Created {formatDate(ticket.created_at)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+
         {!filtered.length && (
           <div className="empty">
             <Inbox size={30} />
