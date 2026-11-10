@@ -1,0 +1,1 @@
+export default function App() { return <><header><div className="brand">Ticket Desk</div><span className="demo-label">LOCAL DEMO</span></header><main><p className="eyebrow">YOUR WORKSPACE</p><h1>A little clarity.</h1><p className="muted">A simple home for your support requests.</p></main></> }
