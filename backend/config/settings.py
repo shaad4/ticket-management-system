@@ -165,3 +165,8 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+SESSION_COOKIE_AGE = 30 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+
